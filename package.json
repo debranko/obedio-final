@@ -1,0 +1,31 @@
+{
+  "name": "obedio-mqtt-server",
+  "version": "1.0.0",
+  "description": "MQTT server for the OBEDIO IoT system",
+  "main": "obedio-mqtt-server.js",
+  "scripts": {
+    "start": "node obedio-mqtt-server.js",
+    "dev": "nodemon obedio-mqtt-server.js",
+    "dev:bridge": "npx tsx watch ./OBEDIO_SYSTEM/scripts/mqttBridge.ts"
+  },
+  "keywords": [
+    "mqtt",
+    "iot",
+    "obedio",
+    "server"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.14",
+    "class-variance-authority": "^0.7.1",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "moment": "^2.29.4",
+    "mqtt": "^4.3.7",
+    "socket.io": "^4.6.1"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+}

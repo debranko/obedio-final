@@ -1,0 +1,54 @@
+{
+  "name": "obedio-device-simulators",
+  "version": "1.0.0",
+  "description": "OBEDIO MQTT Device Simulators and Testing Infrastructure",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "start:button": "tsx src/simulators/button-simulator.ts",
+    "start:watch": "tsx src/simulators/watch-simulator.ts",
+    "start:repeater": "tsx src/simulators/repeater-simulator.ts",
+    "start:multi": "tsx src/multi-device-runner.ts",
+    "seed": "tsx src/scripts/seed-database.ts",
+    "test:load": "tsx src/scripts/load-test.ts",
+    "test:lifecycle": "tsx src/scripts/lifecycle-test.ts",
+    "clean": "rm -rf dist logs",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write src/**/*.ts"
+  },
+  "keywords": [
+    "mqtt",
+    "iot",
+    "simulator",
+    "obedio",
+    "testing"
+  ],
+  "author": "OBEDIO Team",
+  "license": "MIT",
+  "dependencies": {
+    "mqtt": "^5.3.4",
+    "commander": "^11.1.0",
+    "chalk": "^5.3.0",
+    "winston": "^3.11.0",
+    "dotenv": "^16.3.1",
+    "uuid": "^9.0.1",
+    "node-cron": "^3.0.3",
+    "faker": "^6.6.6",
+    "@faker-js/faker": "^8.4.1",
+    "axios": "^1.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "@types/uuid": "^9.0.7",
+    "@types/node-cron": "^3.0.11",
+    "typescript": "^5.3.3",
+    "tsx": "^4.6.2",
+    "eslint": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "prettier": "^3.1.1"
+  }
+}

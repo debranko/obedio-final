@@ -1,0 +1,200 @@
+version: '3.8'
+
+services:
+  cert-init:
+    image: alpine/openssl:latest
+    container_name: obedio-cert-init
+    working_dir: /certs
+    volumes:
+      - ./docker/certificates:/certs
+      - ./scripts:/scripts:ro
+    command: |
+      sh -c "
+        echo 'Initializing certificate infrastructure...'
+        
+        # Create directory structure with proper permissions
+        mkdir -p /certs/ca /certs/server /certs/clients /certs/backup
+        
+        # Check if CA certificate exists
+        if [ ! -f /certs/ca/ca.crt ]; then
+          echo 'Generating CA certificate...'
+          # Install bash for script compatibility
+          apk add --no-cache bash
+          chmod +x /scripts/generate-ca.sh
+          cd /scripts && ./generate-ca.sh
+        else
+          echo 'CA certificate already exists'
+        fi
+        
+        # Check if server certificate exists
+        if [ ! -f /certs/server.crt ]; then
+          echo 'Generating server certificate...'
+          # Install bash for script compatibility
+          apk add --no-cache bash
+          chmod +x /scripts/generate-server-cert.sh
+          cd /scripts && ./generate-server-cert.sh
+        else
+          echo 'Server certificate already exists'
+        fi
+        
+        # Set proper file permissions
+        chown -R 1883:1883 /certs
+        chmod 755 /certs /certs/ca /certs/server /certs/clients /certs/backup
+        chmod 600 /certs/ca/ca.key /certs/server.key 2>/dev/null || true
+        chmod 644 /certs/ca/ca.crt /certs/server.crt 2>/dev/null || true
+        
+        echo 'Certificate initialization completed'
+      "
+    restart: "no"
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0.18
+    container_name: obedio-mosquitto
+    depends_on:
+      cert-init:
+        condition: service_completed_successfully
+    environment:
+      - MQTT_LOG_LEVEL=${MQTT_LOG_LEVEL:-notice}
+    ports:
+      - "1883:1883"   # MQTT
+      - "8883:8883"   # MQTT over TLS
+      - "9001:9001"   # WebSocket
+    volumes:
+      - ./docker/mosquitto/config:/mosquitto/config:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_logs:/mosquitto/log
+      - ./docker/certificates:/mosquitto/certs:ro
+    restart: unless-stopped
+    networks:
+      - obedio-network
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/broker/uptime", "-C", "1", "-W", "5"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    security_opt:
+      - no-new-privileges:true
+    user: "1883:1883"
+
+  postgresql:
+    image: postgres:15-alpine
+    container_name: obedio-postgres
+    environment:
+      POSTGRES_DB: obedio
+      POSTGRES_USER: obedio_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-obedio_secure_password_2024}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+    networks:
+      - obedio-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U obedio_user -d obedio"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    container_name: obedio-redis
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    restart: unless-stopped
+    networks:
+      - obedio-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    security_opt:
+      - no-new-privileges:true
+    user: "999:999"
+
+  mqtt-admin-api:
+    build:
+      context: ./mqtt-admin-api
+      dockerfile: Dockerfile
+    container_name: obedio-mqtt-api
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=4001
+      - DATABASE_URL=postgresql://obedio_user:${POSTGRES_PASSWORD:-obedio_secure_password_2024}@postgresql:5432/obedio
+      - REDIS_URL=redis://redis:6379
+      - MQTT_BROKER_URL=mqtt://mosquitto:1883
+      - MQTT_BROKER_WS_URL=ws://mosquitto:9001
+      - MQTT_BROKER_TLS_URL=mqtts://mosquitto:8883
+      - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_key_here}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-your_32_char_encryption_key_here}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - MQTT_USERNAME=${MQTT_USERNAME:-obedio-api-service}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      - API_KEY=${API_KEY:-}
+      - ENABLE_TLS=${ENABLE_TLS:-false}
+      - CERT_PATH=/app/certs
+    ports:
+      - "4001:4001"
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mosquitto:
+        condition: service_healthy
+    volumes:
+      - ./docker/certificates:/app/certs:ro
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - obedio-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4001/health", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./docker/volumes/postgres
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./docker/volumes/redis
+  mosquitto_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./docker/volumes/mosquitto/data
+  mosquitto_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./docker/volumes/mosquitto/logs
+
+networks:
+  obedio-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

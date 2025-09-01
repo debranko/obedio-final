@@ -1,0 +1,272 @@
+version: '3.8'
+
+services:
+  # MQTT Device Simulators
+  button-simulator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: obedio-button-simulator
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - MQTT_BROKER_URL=${MQTT_BROKER_URL:-mqtt://mosquitto:1883}
+      - MQTT_USERNAME=${MQTT_USERNAME:-simulator-client}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      - DEFAULT_SITE=${DEFAULT_SITE:-yacht-1}
+      - DEFAULT_ROOM=${DEFAULT_ROOM:-deck-1}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - DEVICE_COUNT=5
+      - DEVICE_TYPE=button
+    volumes:
+      - ./logs:/app/logs
+      - ./config:/app/config:ro
+    networks:
+      - obedio-network
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+    command: ["npm", "run", "start:multi", "--", "start", "-b", "5", "-w", "0", "-r", "0", "-g", "0"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  watch-simulator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: obedio-watch-simulator
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - MQTT_BROKER_URL=${MQTT_BROKER_URL:-mqtt://mosquitto:1883}
+      - MQTT_USERNAME=${MQTT_USERNAME:-simulator-client}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      - DEFAULT_SITE=${DEFAULT_SITE:-yacht-1}
+      - DEFAULT_ROOM=${DEFAULT_ROOM:-cabin-101}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - DEVICE_COUNT=3
+      - DEVICE_TYPE=watch
+    volumes:
+      - ./logs:/app/logs
+      - ./config:/app/config:ro
+    networks:
+      - obedio-network
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+    command: ["npm", "run", "start:multi", "--", "start", "-b", "0", "-w", "3", "-r", "0", "-g", "0"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  repeater-simulator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: obedio-repeater-simulator
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - MQTT_BROKER_URL=${MQTT_BROKER_URL:-mqtt://mosquitto:1883}
+      - MQTT_USERNAME=${MQTT_USERNAME:-simulator-client}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      - DEFAULT_SITE=${DEFAULT_SITE:-yacht-1}
+      - DEFAULT_ROOM=${DEFAULT_ROOM:-infrastructure}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - DEVICE_COUNT=2
+      - DEVICE_TYPE=repeater
+    volumes:
+      - ./logs:/app/logs
+      - ./config:/app/config:ro
+    networks:
+      - obedio-network
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+    command: ["npm", "run", "start:multi", "--", "start", "-b", "0", "-w", "0", "-r", "2", "-g", "0"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  generic-simulator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: obedio-generic-simulator
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - MQTT_BROKER_URL=${MQTT_BROKER_URL:-mqtt://mosquitto:1883}
+      - MQTT_USERNAME=${MQTT_USERNAME:-simulator-client}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      - DEFAULT_SITE=${DEFAULT_SITE:-yacht-1}
+      - DEFAULT_ROOM=${DEFAULT_ROOM:-sensors}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - DEVICE_COUNT=4
+      - DEVICE_TYPE=generic
+      - TEMPLATE_NAME=temperature_sensor
+    volumes:
+      - ./logs:/app/logs
+      - ./config:/app/config:ro
+    networks:
+      - obedio-network
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+    command: ["npm", "run", "start:multi", "--", "start", "-b", "0", "-w", "0", "-r", "0", "-g", "4", "-t", "temperature_sensor"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # Database seeder (runs once)
+  database-seeder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: obedio-database-seeder
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://obedio_user:obedio_secure_password_2024@postgresql:5432/obedio}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - obedio-network
+    depends_on:
+      - postgresql
+    restart: "no"
+    command: ["npm", "run", "seed"]
+
+  # Load testing service
+  load-tester:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: obedio-load-tester
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - MQTT_BROKER_URL=${MQTT_BROKER_URL:-mqtt://mosquitto:1883}
+      - MQTT_USERNAME=${MQTT_USERNAME:-simulator-client}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      - DEFAULT_SITE=${DEFAULT_SITE:-load-test}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - ./logs:/app/logs
+      - ./config:/app/config:ro
+    networks:
+      - obedio-network
+    depends_on:
+      - mosquitto
+    restart: "no"
+    profiles:
+      - testing
+    command: ["npm", "run", "start:multi", "--", "load-test", "-d", "300000", "-m", "50"]
+
+  # Simulator management dashboard (optional)
+  simulator-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: obedio-simulator-dashboard
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=3002
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./logs:/app/logs:ro
+      - ./config:/app/config:ro
+    networks:
+      - obedio-network
+    restart: unless-stopped
+    profiles:
+      - dashboard
+    command: ["node", "dist/dashboard/server.js"]
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # MQTT Broker (for standalone testing)
+  mosquitto:
+    image: eclipse-mosquitto:2.0.18
+    container_name: obedio-mosquitto-sim
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_logs:/mosquitto/log
+    networks:
+      - obedio-network
+    restart: unless-stopped
+    profiles:
+      - standalone
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/broker/uptime", "-C", "1", "-W", "5"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # PostgreSQL (for standalone testing)
+  postgresql:
+    image: postgres:15-alpine
+    container_name: obedio-postgres-sim
+    environment:
+      POSTGRES_DB: obedio
+      POSTGRES_USER: obedio_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-obedio_secure_password_2024}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - obedio-network
+    restart: unless-stopped
+    profiles:
+      - standalone
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U obedio_user -d obedio"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  mosquitto_data:
+    driver: local
+  mosquitto_logs:
+    driver: local
+  postgres_data:
+    driver: local
+
+networks:
+  obedio-network:
+    external: true
+    name: obedio-network
+
+# Override for development
+x-development-overrides: &development-overrides
+  volumes:
+    - .:/app
+    - /app/node_modules
+  command: ["npm", "run", "dev"]
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"

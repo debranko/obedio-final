@@ -1,0 +1,220 @@
+"use client"
+
+import { useState, useRef, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { Camera, Upload, X, Check, RefreshCw } from "lucide-react"
+import { cn } from "@/lib/utils"
+
+interface ImageCaptureProps {
+  onImageCapture: (imageData: string | null) => void
+  initialImage?: string | null
+  className?: string
+}
+
+export function ImageCapture({ onImageCapture, initialImage, className }: ImageCaptureProps) {
+  const [captureMode, setCaptureMode] = useState<'file' | 'camera' | null>(null)
+  const [previewImage, setPreviewImage] = useState<string | null>(initialImage || null)
+  const [isCameraActive, setIsCameraActive] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  
+  // Cleanup camera stream when component unmounts
+  useEffect(() => {
+    return () => {
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        const tracks = stream.getTracks();
+        tracks.forEach(track => track.stop());
+      }
+    }
+  }, [])
+
+  // Start camera when camera mode is selected
+  useEffect(() => {
+    if (captureMode === 'camera' && !isCameraActive) {
+      startCamera();
+    } else if (captureMode !== 'camera' && isCameraActive) {
+      stopCamera();
+    }
+  }, [captureMode])
+
+  const startCamera = async () => {
+    try {
+      const constraints = {
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'user'
+        }
+      };
+      
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        setIsCameraActive(true);
+      }
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+      alert("Nije moguće pristupiti kameri. Koristite opciju za upload slike.");
+      setCaptureMode(null);
+    }
+  }
+
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      const tracks = stream.getTracks();
+      tracks.forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+      setIsCameraActive(false);
+    }
+  }
+
+  const takePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      const context = canvas.getContext('2d');
+      if (context) {
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = canvas.toDataURL('image/jpeg');
+        setPreviewImage(imageData);
+        setCaptureMode(null);
+      }
+    }
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const imageData = event.target?.result as string;
+        setPreviewImage(imageData);
+        setCaptureMode(null);
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  const confirmImage = () => {
+    console.log('ImageCapture: confirmImage called with image:', previewImage ? 'image present' : 'no image');
+    if (previewImage) {
+      // Dodajmo vizuelnu indikaciju da se potvrda procesira
+      alert('Slika je uspešno potvrđena! Kliknite "Sačuvaj promene" da sačuvate promene na profilu gosta.');
+    }
+    // Pozovemo callback funkciju koja je prosleđena kroz props
+    onImageCapture(previewImage);
+  }
+
+  const cancelImage = () => {
+    // Osiguravamo da je vrednost odgovarajućeg tipa za state
+    setPreviewImage(initialImage || null);
+    // Osiguravamo da je vrednost odgovarajućeg tipa za callback
+    onImageCapture(initialImage || null);
+  }
+
+  return (
+    <div className={cn("max-w-md mx-auto", className)}>
+      {!captureMode && !previewImage && (
+        <div className="flex flex-col space-y-3 items-center p-4 border-2 border-dashed border-gray-300 rounded-lg">
+          <p className="text-sm text-muted-foreground text-center mb-2">
+            Izaberite način dodavanja slike gosta
+          </p>
+          <div className="flex space-x-3">
+            <Button 
+              onClick={() => setCaptureMode('camera')} 
+              variant="outline" 
+              className="flex-1"
+            >
+              <Camera className="mr-2 h-4 w-4" />
+              Kamera
+            </Button>
+            <Button 
+              onClick={() => setCaptureMode('file')} 
+              variant="outline" 
+              className="flex-1"
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Upload
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {captureMode === 'camera' && (
+        <div className="space-y-3">
+          <div className="relative rounded-lg overflow-hidden border border-input">
+            <video 
+              ref={videoRef} 
+              autoPlay 
+              playsInline 
+              className="w-full h-auto"
+            />
+            <canvas ref={canvasRef} className="hidden" />
+          </div>
+          <div className="flex justify-center space-x-3">
+            <Button onClick={() => setCaptureMode(null)} variant="ghost" size="sm">
+              <X className="mr-2 h-4 w-4" />
+              Odustani
+            </Button>
+            <Button onClick={takePhoto} variant="default" size="sm">
+              <Camera className="mr-2 h-4 w-4" />
+              Snimi
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {captureMode === 'file' && (
+        <div className="space-y-3">
+          <div className="flex justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg">
+            <input 
+              type="file" 
+              accept="image/*" 
+              onChange={handleFileChange} 
+              className="w-full"
+            />
+          </div>
+          <Button onClick={() => setCaptureMode(null)} variant="ghost" size="sm" className="w-full">
+            <X className="mr-2 h-4 w-4" />
+            Odustani
+          </Button>
+        </div>
+      )}
+
+      {previewImage && !captureMode && (
+        <div className="space-y-3">
+          <div className="relative border border-input rounded-lg overflow-hidden">
+            <img 
+              src={previewImage} 
+              alt="Preview" 
+              className="w-full h-auto object-cover"
+            />
+          </div>
+          <div className="flex justify-between">
+            <Button onClick={() => setPreviewImage(null)} variant="outline" size="sm">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Promeni
+            </Button>
+            <div className="space-x-2">
+              <Button onClick={cancelImage} variant="ghost" size="sm">
+                <X className="mr-2 h-4 w-4" />
+                Odustani
+              </Button>
+              <Button onClick={confirmImage} variant="default" size="sm">
+                <Check className="mr-2 h-4 w-4" />
+                Potvrdi
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Osnovne boje */
+    --background: 0 0% 100%; /* Čista bela pozadina */
+    --foreground: 215 25% 27%; /* WCAG AAA čitljiv tekst (obedio-gray-600) */
+    
+    /* Kartice i pop-over elementi */
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 27%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 27%;
+    
+    /* Primarna (plava) boja */
+    --primary: 207 83% 54%; /* Obedio plava - osnovna (WCAG AA) */
+    --primary-foreground: 0 0% 100%;
+    
+    /* Sekundarna (zelena) boja */
+    --secondary: 134 60% 41%; /* Obedio zelena - osnovna (WCAG AA) */
+    --secondary-foreground: 0 0% 100%;
+    
+    /* Utišane boje */
+    --muted: 210 20% 98%;
+    --muted-foreground: 215 25% 40%; /* WCAG AA čitljiv tekst u sivoj */
+    
+    /* Akcentne boje */
+    --accent: 210 20% 96%; 
+    --accent-foreground: 215 25% 27%;
+    
+    /* Destruktivne (crvene) boje */
+    --destructive: 0 74% 54%; /* Obedio crvena (WCAG AA) */
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Granice i inputi */
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 207 83% 54%;
+    
+    /* Radijus zaobljenja */
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Osnovne boje za tamnu temu */
+    --background: 222 47% 11%; /* Tamno plava pozadina (obedio-gray-900) */
+    --foreground: 210 40% 98%; /* WCAG AAA čitljiv svetli tekst na tamnoj podlozi */
+    
+    /* Kartice i pop-over elementi */
+    --card: 215 28% 17%; /* Nešto svetlija tamna pozadina za kartice */
+    --card-foreground: 210 40% 98%;
+    --popover: 215 28% 17%;
+    --popover-foreground: 210 40% 98%;
+    
+    /* Primarna (plava) boja za tamnu temu - svetlija varijanta za bolju vidljivost */
+    --primary: 207 85% 65%; /* Svetlija Obedio plava za tamnu temu (WCAG AA) */
+    --primary-foreground: 215 28% 17%; /* Tamni tekst na svetloj plavoj podlozi */
+    
+    /* Sekundarna (zelena) boja za tamnu temu */
+    --secondary: 134 65% 55%; /* Svetlija Obedio zelena za tamnu temu (WCAG AA) */
+    --secondary-foreground: 215 28% 17%;
+    
+    /* Utišane boje */
+    --muted: 215 28% 25%; /* Svetlija tamna podloga za utišane elemente */
+    --muted-foreground: 210 40% 80%; /* WCAG AA čitljiv svetliji tekst za utišane elemente */
+    
+    /* Akcentne boje */
+    --accent: 215 28% 25%;
+    --accent-foreground: 210 40% 98%;
+    
+    /* Destruktivne (crvene) boje za tamnu temu */
+    --destructive: 0 80% 65%; /* Svetlija Obedio crvena za tamnu temu (WCAG AA) */
+    --destructive-foreground: 210 40% 98%;
+    
+    /* Granice i inputi */
+    --border: 215 28% 25%;
+    --input: 215 28% 25%;
+    --ring: 207 85% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

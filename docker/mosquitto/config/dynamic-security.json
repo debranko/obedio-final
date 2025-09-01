@@ -1,0 +1,191 @@
+{
+  "version": 1,
+  "clients": [
+    {
+      "username": "mqtt-admin",
+      "password": "$7$101$mqttadmin2024$V8kVcZn9P5gRmQ3xF7nK6w==$vQyX8cZm9S4rL2nF6jH5kA==",
+      "clientid": "mqtt-admin-api",
+      "textname": "MQTT Admin Service",
+      "textdescription": "Administrative service for MQTT broker management",
+      "roles": [
+        {
+          "rolename": "admin"
+        }
+      ]
+    },
+    {
+      "username": "obedio-api-service",
+      "password": "$7$101$obedioapiservice$G9mVdAn2Q6hSnR4yI8oL7x==$zRzY9dBo0U5sM3pG7kI6lB==",
+      "clientid": "obedio-backend-api",
+      "textname": "Obedio Backend API",
+      "textdescription": "Main backend service for device communication",
+      "roles": [
+        {
+          "rolename": "service"
+        }
+      ]
+    },
+    {
+      "username": "obedio-provision-service",
+      "password": "$7$101$obedioprovision$H0nWeBp3R7iToS5zJ9pM8y==$aScZ0eCp1V6tN4qH8lJ7mC==",
+      "clientid": "obedio-provisioning",
+      "textname": "Device Provisioning Service",
+      "textdescription": "Service for provisioning new devices",
+      "roles": [
+        {
+          "rolename": "provisioning"
+        }
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "groupname": "devices",
+      "textname": "IoT Devices",
+      "textdescription": "Group for all IoT devices (buttons, watches, repeaters)",
+      "roles": [
+        {
+          "rolename": "device"
+        }
+      ]
+    },
+    {
+      "groupname": "services",
+      "textname": "Backend Services",
+      "textdescription": "Group for backend services and APIs",
+      "roles": [
+        {
+          "rolename": "service"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "rolename": "admin",
+      "textname": "Administrator",
+      "textdescription": "Full access to all topics and system management",
+      "acls": [
+        {
+          "acltype": "publishClientSend",
+          "topic": "obedio/#",
+          "priority": 10,
+          "allow": true
+        },
+        {
+          "acltype": "subscribePattern",
+          "topic": "obedio/#",
+          "priority": 10,
+          "allow": true
+        },
+        {
+          "acltype": "subscribePattern",
+          "topic": "$SYS/#",
+          "priority": 10,
+          "allow": true
+        }
+      ]
+    },
+    {
+      "rolename": "service",
+      "textname": "Backend Service",
+      "textdescription": "Backend services with broad access for device management",
+      "acls": [
+        {
+          "acltype": "publishClientSend",
+          "topic": "obedio/+/+/+/+/cmd/#",
+          "priority": 5,
+          "allow": true
+        },
+        {
+          "acltype": "subscribePattern",
+          "topic": "obedio/#",
+          "priority": 5,
+          "allow": true
+        },
+        {
+          "acltype": "subscribePattern",
+          "topic": "$SYS/broker/clients/+",
+          "priority": 5,
+          "allow": true
+        }
+      ]
+    },
+    {
+      "rolename": "device",
+      "textname": "IoT Device",
+      "textdescription": "Standard IoT device with restricted access",
+      "acls": [
+        {
+          "acltype": "publishClientSend",
+          "topic": "obedio/${clientid}/status",
+          "priority": 3,
+          "allow": true
+        },
+        {
+          "acltype": "publishClientSend",
+          "topic": "obedio/${clientid}/press",
+          "priority": 3,
+          "allow": true
+        },
+        {
+          "acltype": "publishClientSend",
+          "topic": "obedio/${clientid}/heartbeat",
+          "priority": 3,
+          "allow": true
+        },
+        {
+          "acltype": "publishClientSend",
+          "topic": "obedio/${clientid}/battery",
+          "priority": 3,
+          "allow": true
+        },
+        {
+          "acltype": "subscribePattern",
+          "topic": "obedio/${clientid}/cmd/#",
+          "priority": 3,
+          "allow": true
+        },
+        {
+          "acltype": "subscribePattern",
+          "topic": "obedio/system/time",
+          "priority": 3,
+          "allow": true
+        }
+      ]
+    },
+    {
+      "rolename": "provisioning",
+      "textname": "Provisioning Service",
+      "textdescription": "Service for device provisioning and initial setup",
+      "acls": [
+        {
+          "acltype": "publishClientSend",
+          "topic": "obedio/system/provision/#",
+          "priority": 5,
+          "allow": true
+        },
+        {
+          "acltype": "subscribePattern",
+          "topic": "obedio/system/provision/#",
+          "priority": 5,
+          "allow": true
+        },
+        {
+          "acltype": "subscribePattern",
+          "topic": "obedio/+/+/+/+/status",
+          "priority": 5,
+          "allow": true
+        }
+      ]
+    }
+  ],
+  "defaultACLAccess": {
+    "publishClientSend": false,
+    "publishClientReceive": false,
+    "subscribePattern": false,
+    "subscribeShared": false,
+    "unsubscribePattern": false,
+    "unsubscribeShared": false
+  }
+}

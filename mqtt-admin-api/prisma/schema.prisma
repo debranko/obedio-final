@@ -1,0 +1,305 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  name      String
+  email     String?   @unique
+  password  String
+  role      String
+  avatar    String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  requests  Request[] @relation("assigned")
+  shifts    Shift[]
+  devices   Device[]  @relation("UserDevices")
+}
+
+model Location {
+  id          Int      @id @default(autoincrement())
+  name        String
+  deck        String
+  type        String
+  capacity    Int      @default(1)
+  isActive    Boolean  @default(true)
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  devices     Device[]
+  guests      Guest[]
+}
+
+model Device {
+  id                 Int       @id @default(autoincrement())
+  uid                String    @unique
+  name               String?
+  room               String
+  type               String    @default("BUTTON")
+  battery            Int       @default(100)
+  signal             Int       @default(100)
+  isActive           Boolean   @default(true)
+  lastSeen           DateTime  @default(now())
+  firmwareVersion    String?
+  location           String?
+  model              String?
+  assignedToUserId   Int?
+  lastSync           DateTime?
+  connectionType     String?
+  operatingFrequency String?
+  isEmergencyMode    Boolean?  @default(false)
+  connectedDevices   Int?      @default(0)
+  coverageArea       String?
+  meshRole           String?
+  ipAddress          String?
+  macAddress         String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  locationId         Int?
+  specificLocation   String?
+  requests           Request[]
+  assignedToUser     User?     @relation("UserDevices", fields: [assignedToUserId], references: [id])
+  locationRef        Location? @relation(fields: [locationId], references: [id])
+
+  @@index([locationId])
+}
+
+model Request {
+  id         Int      @id @default(autoincrement())
+  deviceId   Int
+  createdAt  DateTime @default(now())
+  status     String   @default("OPEN")
+  assignedTo Int?
+  voiceUrl   String?
+  transcript String?
+  updatedAt  DateTime @updatedAt
+  assignee   User?    @relation("assigned", fields: [assignedTo], references: [id])
+  device     Device   @relation(fields: [deviceId], references: [id])
+}
+
+model ProvisionToken {
+  id        Int            @id @default(autoincrement())
+  token     String         @unique
+  qrPayload String
+  room      String
+  status    String         @default("ACTIVE")
+  expiresAt DateTime
+  createdBy Int?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  usedAt    DateTime?
+  deviceId  Int?
+  logs      ProvisionLog[]
+}
+
+model ProvisionLog {
+  id        Int            @id @default(autoincrement())
+  tokenId   Int
+  action    String
+  deviceUid String?
+  message   String?
+  metadata  String?
+  createdAt DateTime       @default(now())
+  ipAddress String?
+  token     ProvisionToken @relation(fields: [tokenId], references: [id])
+}
+
+model Shift {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  startsAt  DateTime
+  endsAt    DateTime
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Guest {
+  id              Int              @id @default(autoincrement())
+  name            String
+  room            String?
+  status          String           @default("Checked-In")
+  isVip           Boolean          @default(false)
+  guestType       String
+  partySize       Int              @default(1)
+  arrivalDate     DateTime
+  departureDate   DateTime
+  notes           String?
+  assignedCrew    String?
+  location        String?
+  preferences     String?
+  broker          String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  imageUrl        String?
+  languagesSpoken String?
+  nationality     String?
+  tags            String?
+  locationId      Int?
+  serviceRequests ServiceRequest[]
+  locationRef     Location?        @relation(fields: [locationId], references: [id])
+
+  @@index([locationId])
+}
+
+model ServiceRequest {
+  id          Int      @id @default(autoincrement())
+  type        String
+  room        String
+  status      String   @default("pending")
+  timestamp   DateTime @default(now())
+  description String?
+  guestId     Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  guest       Guest    @relation(fields: [guestId], references: [id])
+}
+
+model MqttCertificate {
+  id              Int      @id @default(autoincrement())
+  certificateId   String   @unique
+  commonName      String
+  certificateType String   // "ca", "server", "client"
+  deviceType      String?  // "button", "watch", "sensor", "gateway", "admin", "service"
+  deviceId        String?
+  organization    String   @default("OBEDIO")
+  organizationUnit String?
+  locality        String?
+  state           String?
+  country         String   @default("US")
+  keyUsage        String   // JSON array of key usage
+  extendedKeyUsage String  // JSON array of extended key usage
+  subjectAltNames String?  // JSON array of SAN entries
+  serialNumber    String   @unique
+  fingerprint     String   @unique
+  issuerFingerprint String?
+  keySize         Int      @default(2048)
+  signatureAlgorithm String @default("SHA256withRSA")
+  issuedAt        DateTime @default(now())
+  expiresAt       DateTime
+  status          String   @default("active") // "active", "revoked", "expired"
+  revokedAt       DateTime?
+  revocationReason String?
+  certificatePath String
+  privateKeyPath  String?
+  chainPath       String?
+  bundlePath      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       Int?
+  revokedBy       Int?
+  metadata        String?  // JSON metadata
+  logs            MqttCertificateLog[]
+  
+  @@index([deviceId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model MqttCertificateLog {
+  id            Int      @id @default(autoincrement())
+  certificateId Int
+  action        String   // "ISSUED", "RENEWED", "REVOKED", "VALIDATED", "EXPIRED"
+  details       String?
+  metadata      String?  // JSON metadata
+  ipAddress     String?
+  userAgent     String?
+  timestamp     DateTime @default(now())
+  performedBy   Int?
+  
+  certificate   MqttCertificate @relation(fields: [certificateId], references: [id])
+  
+  @@index([certificateId])
+  @@index([action])
+  @@index([timestamp])
+}
+
+// MVP MQTT Models - Simplified Password-Based Authentication
+model MqttDevice {
+  id            Int      @id @default(autoincrement())
+  deviceId      String   @unique  // e.g., "button-001", "gateway-001"
+  site          String   // Site/location identifier
+  room          String   // Room/area identifier
+  deviceType    String   // "button", "gateway", "sensor", "admin"
+  username      String   @unique  // MQTT username (same as deviceId)
+  passwordHash  String   // Hashed password for security
+  isActive      Boolean  @default(true)
+  lastSeen      DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Device metadata
+  model         String?
+  firmwareVersion String?
+  ipAddress     String?
+  macAddress    String?
+  
+  // Relationships
+  presence      MqttPresence?
+  traffic       MqttTraffic[]
+  credentials   DeviceCredential?
+  
+  @@index([site, room])
+  @@index([deviceType])
+  @@index([isActive])
+  @@index([lastSeen])
+}
+
+model MqttPresence {
+  id            Int      @id @default(autoincrement())
+  deviceId      String   @unique
+  status        String   @default("offline") // "online", "offline", "disconnected"
+  lastSeen      DateTime @default(now())
+  battery       Int?     // Battery level 0-100
+  rssi          Int?     // Signal strength
+  connectedAt   DateTime?
+  disconnectedAt DateTime?
+  metadata      String?  // JSON metadata (location, etc.)
+  
+  device        MqttDevice @relation(fields: [deviceId], references: [deviceId])
+  
+  @@index([status])
+  @@index([lastSeen])
+}
+
+model MqttTraffic {
+  id            Int      @id @default(autoincrement())
+  deviceId      String
+  topic         String
+  payload       String?  // Message payload (truncated if too large)
+  payloadSize   Int      @default(0)
+  qos           Int      @default(0)
+  retained      Boolean  @default(false)
+  direction     String   // "inbound", "outbound"
+  timestamp     DateTime @default(now())
+  
+  device        MqttDevice @relation(fields: [deviceId], references: [deviceId])
+  
+  @@index([deviceId])
+  @@index([topic])
+  @@index([timestamp])
+  @@index([direction])
+}
+
+model DeviceCredential {
+  id            Int      @id @default(autoincrement())
+  deviceId      String   @unique
+  username      String
+  password      String   // Plain text for QR generation (short-lived)
+  qrCode        String?  // Base64 QR code data
+  mqttConfig    String   // JSON MQTT connection config
+  expiresAt     DateTime // Credentials expire after showing once
+  createdAt     DateTime @default(now())
+  viewedAt      DateTime?
+  
+  device        MqttDevice @relation(fields: [deviceId], references: [deviceId])
+  
+  @@index([expiresAt])
+  @@index([createdAt])
+}
